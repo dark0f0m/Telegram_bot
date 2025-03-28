@@ -89,7 +89,7 @@ def run_bot():
     dispatcher.add_handler(CallbackQueryHandler(button))
 
     # Настройка webhook
-    bot.set_webhook(url=f'https://telegrambot-production-97b9.up.railway.app/{TELEGRAM_BOT_TOKEN}')
+    bot.set_webhook(url=f'https://telegrambot-production-12af.up.railway.app/{TELEGRAM_BOT_TOKEN}')
 
 if __name__ == '__main__':
     run_bot()
