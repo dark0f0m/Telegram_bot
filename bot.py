@@ -83,14 +83,13 @@ def webhook():
 # Запуск бота через webhook
 def run_bot():
     global dispatcher
-    updater = Updater(7842539374:AAGuHhEgAcS6dAHKvCqEXjzVksgJD83fOkQ, use_context=True)
+    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)  # Используем переменную TELEGRAM_BOT_TOKEN
     dispatcher = updater.dispatcher
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CallbackQueryHandler(button))
 
     # Настройка webhook
-    bot.set_webhook(url='https://236c-138-124-119-59.ngrok-free.app/7842539374:AAGuHhEgAcS6dAHKvCqEXjzVksgJD83fOkQ')
-
+    bot.set_webhook(url=f'https://telegrambot-production-97b9.up.railway.app/{TELEGRAM_BOT_TOKEN}')
 
 if __name__ == '__main__':
     run_bot()
