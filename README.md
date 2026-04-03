@@ -35,13 +35,23 @@
    pip install -r requirements.txt
    ```
 
-3. **Настройте параметры в `bot.py`:**
+3. **Задайте переменные окружения:**
 
-   | Параметр | Описание |
-   |----------|----------|
+   Создайте файл `.env` или задайте переменные в настройках платформы (например, Railway):
+
+   | Переменная | Описание |
+   |------------|----------|
    | `TELEGRAM_BOT_TOKEN` | Токен бота, полученный от @BotFather |
-   | `API_KEY` (в `get_weather`) | Ваш API-ключ OpenWeatherMap |
-   | URL в `bot.set_webhook(...)` | Публичный HTTPS-адрес вашего сервера |
+   | `OWM_API_KEY` | Ваш API-ключ OpenWeatherMap |
+   | `WEBHOOK_URL` | Публичный HTTPS-адрес вашего сервера (без завершающего `/`) |
+
+   Пример `.env`:
+
+   ```env
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   OWM_API_KEY=your_owm_api_key_here
+   WEBHOOK_URL=https://your-app.up.railway.app
+   ```
 
 4. **Добавьте дни рождения** в словарь `BIRTHDAYS` в `bot.py`:
 

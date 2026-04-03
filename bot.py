@@ -1,10 +1,11 @@
+import asyncio
 import datetime
 import logging
+import os
 import requests
 from flask import Flask, request
-from telegram import Bot, Update
-from telegram.ext import CommandHandler, CallbackQueryHandler, Updater, Dispatcher
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler
 
 # Включаем логирование
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -18,23 +19,32 @@ BIRTHDAYS = {
     # Добавьте других пользователей здесь
 }
 
-# Токен бота
-TELEGRAM_BOT_TOKEN = "7842539374:AAGuHhEgAcS6dAHKvCqEXjzVksgJD83fOkQ"  # Токен, полученный от @BotFather
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+# Токен бота и параметры берутся из переменных окружения
+def _require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise EnvironmentError(f"Обязательная переменная окружения '{name}' не задана.")
+    return value
+
+TELEGRAM_BOT_TOKEN = _require_env("TELEGRAM_BOT_TOKEN")
+WEBHOOK_URL = _require_env("WEBHOOK_URL")
+
+application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 # Создаем Flask приложение
 app = Flask(__name__)
 
 # Функция получения прогноза погоды (пример с OpenWeatherAPI)
 def get_weather():
-    API_KEY = "cdc958826226e0655a3eab011eaaebf5"  # Ваш API-ключ для погоды
-    CITY = "Moscow"
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric&lang=ru"
+    api_key = _require_env("OWM_API_KEY")
+    city = "Moscow"
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric&lang=ru"
     response = requests.get(url)
+    response.raise_for_status()
     data = response.json()
     weather = data['weather'][0]['description']
     temp = data['main']['temp']
-    return f"Погода в {CITY}: {weather}, температура: {temp}°C"
+    return f"Погода в {city}: {weather}, температура: {temp}°C"
 
 # Функция для проверки ближайших дней рождения
 def check_birthdays():
@@ -54,43 +64,39 @@ def check_birthdays():
     return "🎂 Ближайшие дни рождения:\n" + "\n\n".join(upcoming) if upcoming else "❌ Дней рождений нет."
 
 # Обработчик команды /start
-def start(update, context):
+async def start(update: Update, context) -> None:
     keyboard = [
         [InlineKeyboardButton("Погода", callback_data='weather')],
-        [InlineKeyboardButton("Дни рождения", callback_data='birthdays')]
+        [InlineKeyboardButton("Дни рождения", callback_data='birthdays')],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text('Привет! Чем могу помочь?', reply_markup=reply_markup)
+    await update.message.reply_text('Привет! Чем могу помочь?', reply_markup=reply_markup)
 
 # Обработчик кнопок
-def button(update, context):
+async def button(update: Update, context) -> None:
     query = update.callback_query
-    query.answer()
+    await query.answer()
 
     if query.data == 'weather':
-        query.edit_message_text(text=get_weather())
+        await query.edit_message_text(text=get_weather())
     elif query.data == 'birthdays':
-        query.edit_message_text(text=check_birthdays())
+        await query.edit_message_text(text=check_birthdays())
 
 # Роут для обработки обновлений через webhook
 @app.route('/' + TELEGRAM_BOT_TOKEN, methods=['POST'])
 def webhook():
-    json_str = request.get_data().decode("UTF-8")
-    update = Update.de_json(json_str, bot)
-    dispatcher.process_update(update)
+    update_data = request.get_json(force=True)
+    update = Update.de_json(update_data, application.bot)
+    asyncio.run(application.process_update(update))
     return 'ok'
 
-# Запуск бота через webhook
-def run_bot():
-    global dispatcher
-    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)  # Используем переменную TELEGRAM_BOT_TOKEN
-    dispatcher = updater.dispatcher
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CallbackQueryHandler(button))
-
-    # Настройка webhook
-    bot.set_webhook(url=f'https://telegrambot-production-12af.up.railway.app/{TELEGRAM_BOT_TOKEN}')
+# Инициализация бота и настройка webhook
+async def setup() -> None:
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(button))
+    await application.initialize()
+    await application.bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}")
 
 if __name__ == '__main__':
-    run_bot()
+    asyncio.run(setup())
     app.run(host='0.0.0.0', port=5000)
